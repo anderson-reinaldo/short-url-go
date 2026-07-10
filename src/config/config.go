@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 var (
 	Port     = 0
 	Secret   = ""
+	BaseURL  = ""
 	UrlStore = make(map[string]string)
 	mu       sync.Mutex
 )
@@ -29,6 +31,10 @@ func Load() {
 
 	Secret = os.Getenv("SECRET")
 
+	BaseURL = os.Getenv("BASE_URL")
+	if BaseURL == "" {
+		BaseURL = fmt.Sprintf("http://localhost:%d", Port)
+	}
 }
 
 func MuLock() {

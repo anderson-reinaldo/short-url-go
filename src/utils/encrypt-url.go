@@ -5,28 +5,27 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/hex"
-	"log"
 
 	"github.com/anderson-reinaldo/short-url-go/src/config"
 )
 
-func Encrypt(originalURL string) string {
+func Encrypt(originalURL string) (string, error) {
 	block, err := aes.NewCipher([]byte(config.Secret))
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 
-	plainText := []byte(originalURL)
-	cipherText := make([]byte, aes.BlockSize+len(plainText))
-
-	iv := cipherText[:aes.BlockSize]
-
-	if _, err := rand.Read(iv); err != nil {
-		log.Fatal(err)
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
 	}
 
-	stream := cipher.NewCTR(block, iv)
-	stream.XORKeyStream(cipherText[aes.BlockSize:], plainText)
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		return "", err
+	}
 
-	return hex.EncodeToString(cipherText)
+	cipherText := gcm.Seal(nonce, nonce, []byte(originalURL), nil)
+
+	return hex.EncodeToString(cipherText), nil
 }

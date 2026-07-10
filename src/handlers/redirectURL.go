@@ -19,7 +19,11 @@ func RedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	decryptedURL := utils.Decrypt(encryptedURL)
+	decryptedURL, err := utils.Decrypt(encryptedURL)
+	if err != nil {
+		http.Error(w, "Não foi possível processar esta URL.", http.StatusInternalServerError)
+		return
+	}
 
 	http.Redirect(w, r, decryptedURL, http.StatusFound)
 

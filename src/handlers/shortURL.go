@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -8,6 +9,10 @@ import (
 	"github.com/anderson-reinaldo/short-url-go/src/config"
 	"github.com/anderson-reinaldo/short-url-go/src/utils"
 )
+
+type ShortenResponse struct {
+	ShortURL string `json:"short_url"`
+}
 
 func ShortenURLHandler(w http.ResponseWriter, r *http.Request) {
 	originalURL := r.URL.Query().Get("url")
@@ -21,13 +26,25 @@ func ShortenURLHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	encryptURL := utils.Encrypt(originalURL)
-	shortID := utils.GenerateShortID()
+	encryptURL, err := utils.Encrypt(originalURL)
+	if err != nil {
+		http.Error(w, "Não foi possível encurtar a URL.", http.StatusInternalServerError)
+		return
+	}
+
 	config.MuLock()
+	var shortID string
+	for {
+		shortID = utils.GenerateShortID()
+		if _, exists := config.UrlStore[shortID]; !exists {
+			break
+		}
+	}
 	config.UrlStore[shortID] = encryptURL
-	defer config.MuUnLock()
+	config.MuUnLock()
 
-	shortURL := fmt.Sprintf("http://localhost:5000/%s", shortID)
-	fmt.Fprintf(w, "A URL encurtada desta url original é: %s", shortURL)
+	shortURL := fmt.Sprintf("%s/%s", config.BaseURL, shortID)
 
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(ShortenResponse{ShortURL: shortURL})
 }

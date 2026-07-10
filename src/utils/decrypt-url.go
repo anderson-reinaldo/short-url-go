@@ -4,28 +4,38 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/hex"
-	"log"
+	"errors"
 
 	"github.com/anderson-reinaldo/short-url-go/src/config"
 )
 
-func Decrypt(encryptedURL string) string {
+func Decrypt(encryptedURL string) (string, error) {
 	block, err := aes.NewCipher([]byte(config.Secret))
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 
-	cipherText, err := hex.DecodeString(encryptedURL)
+	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 
-	iv := cipherText[:aes.BlockSize]
-	cipherText = cipherText[aes.BlockSize:]
+	data, err := hex.DecodeString(encryptedURL)
+	if err != nil {
+		return "", err
+	}
 
-	stream := cipher.NewCTR(block, iv)
-	stream.XORKeyStream(cipherText, cipherText)
+	nonceSize := gcm.NonceSize()
+	if len(data) < nonceSize {
+		return "", errors.New("ciphertext inválido")
+	}
 
-	return string(cipherText)
+	nonce, cipherText := data[:nonceSize], data[nonceSize:]
 
+	plainText, err := gcm.Open(nil, nonce, cipherText, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return string(plainText), nil
 }
